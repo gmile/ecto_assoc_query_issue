@@ -34,10 +34,6 @@ defmodule Comment do
 
     belongs_to(:author, Author)
   end
-
-  def moderated_comments do
-    dynamic([c], c.state in ^["approved", "disapproved"])
-  end
 end
 
 defmodule Post do
@@ -45,7 +41,7 @@ defmodule Post do
 
   schema "posts" do
     field(:title, :string)
-    has_many(:moderated_comments, Comment, where: {Comment, :moderated_comments, []})
+    has_many(:moderated_comments, Comment, where: [state: {:in, ["approved", "disapproved"]}])
     has_many(:commenters, through: [:moderated_comments, :author])
   end
 end
@@ -53,15 +49,40 @@ end
 defmodule EctoAssocQueryIssue.Reproduce do
   import Ecto.Query
 
-  def good do
-    query = from(p in Post, join: c in assoc(p, :moderated_comments))
+  alias EctoAssocQueryIssue.Repo
 
-    EctoAssocQueryIssue.Repo.all(query)
+  def good do
+    post = Repo.insert!(%Post{})
+
+    Repo.insert!(%Comment{post_id: post.id, state: "approved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "disapproved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "pending"})
+
+    Repo.all(
+      from p in Post,
+      where: p.id == ^post.id,
+      join: mc in assoc(p, :moderated_comments),
+      preload: [moderated_comments: mc]
+    )
   end
 
-  def bad do
-    query = from(p in Post, join: c in assoc(p, :commenters))
+  def bad1 do
+    post = Repo.insert!(%Post{})
 
-    EctoAssocQueryIssue.Repo.all(query)
+    Repo.insert!(%Comment{post_id: post.id, state: "approved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "disapproved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "pending"})
+
+    Repo.one(from p in Post, where: p.id == ^post.id, preload: :moderated_comments)
+  end
+
+  def bad2 do
+    post = Repo.insert!(%Post{})
+
+    Repo.insert!(%Comment{post_id: post.id, state: "approved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "disapproved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "pending"})
+
+    Repo.preload(post, :moderated_comments, force: true)
   end
 end
