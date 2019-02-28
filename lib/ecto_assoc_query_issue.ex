@@ -68,7 +68,23 @@ defmodule EctoAssocQueryIssue.Reproduce do
   end
 
   def log_test do
-    Logger.metadata(request_id: "abc123")
+    require Logger
+
+    Logger.metadata(request_id: "03872725-6411-4746-acb8-047f10aa0072")
+
+    telemetry_fn = fn a,b,c,d ->
+      case Process.info(self())[:dictionary][:"$callers"] do
+        [caller_process] ->
+          {:dictionary, stuff} = Process.info(caller_process, :dictionary)
+          {true, log_metadata} = stuff[:logger_metadata]
+          Logger.info("We're in a task process, preloading some assoc, request_id is #{log_metadata[:request_id]}")
+
+        _ ->
+          Logger.info("We've in a caller process itself")
+      end
+    end
+
+    :telemetry.attach("my-handler", [:ecto_assoc_query_issue, :repo, :query], telemetry_fn, nil)
 
     post = Repo.insert!(%Post{})
 
