@@ -42,6 +42,7 @@ defmodule Post do
   schema "posts" do
     field(:title, :string)
     has_many(:moderated_comments, Comment, where: [state: {:in, ["approved", "disapproved"]}])
+    has_many(:comments, Comment)
     has_many(:commenters, through: [:moderated_comments, :author])
   end
 end
@@ -64,6 +65,18 @@ defmodule EctoAssocQueryIssue.Reproduce do
       join: mc in assoc(p, :moderated_comments),
       preload: [moderated_comments: mc]
     )
+  end
+
+  def log_test do
+    Logger.metadata(request_id: "abc123")
+
+    post = Repo.insert!(%Post{})
+
+    Repo.insert!(%Comment{post_id: post.id, state: "approved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "disapproved"})
+    Repo.insert!(%Comment{post_id: post.id, state: "pending"})
+
+    Repo.preload(post, [:comments, :moderated_comments])
   end
 
   def bad1 do

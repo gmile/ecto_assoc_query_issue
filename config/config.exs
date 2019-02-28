@@ -11,6 +11,9 @@ config :ecto_assoc_query_issue, EctoAssocQueryIssue.Repo,
   hostname: "localhost",
   port: "5432"
 
+config :logger, :console,
+  metadata: :all
+
 # This configuration is loaded before any dependency and is restricted
 # to this project. If another project depends on this project, this
 # file won't be loaded nor affect the parent project. For this reason,
